@@ -1,4 +1,4 @@
-# Nadiah Albinali — Personal Portfolio (Assignment 2)
+# Nadiah Albinali — Personal Portfolio (Assignment 3)
 
 A simple, responsive personal portfolio site, built in Assignment 1 and
 extended in Assignment 2 (*Interactive Features*) with personalization,
