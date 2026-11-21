@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNameForm();
   initMobileNav();
   initContactForm();
+  initGitHubCard();
   initFooterYear();
 });
 
@@ -238,4 +239,102 @@ function initContactForm() {
 function initFooterYear() {
   const yearEl = document.getElementById('year');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
+}
+/* ---------- 5. GitHub API: live Omnia card ---------- */
+const GITHUB_REPO_URL = 'https://api.github.com/repos/nhlsu/Omnia';
+const REPO_CACHE_KEY = 'omniaRepoCache';
+const CACHE_MAX_AGE = 60 * 60 * 1000; // Keep cached data for one hour.
+
+async function initGitHubCard() {
+  const card = document.getElementById('omnia-card');
+  if (!card) return;
+
+  // Step 1: Show the saved repo data if it is still less than an hour old.
+  const cached = readRepoCache();
+  if (cached) {
+    renderRepo(card, cached);
+    return;
+  }
+
+  // Step 2: No fresh saved data is available, so request it from GitHub.
+  try {
+    const response = await fetch(GITHUB_REPO_URL);
+
+    if (!response.ok) {
+      throw new Error(`GitHub responded with status ${response.status}`);
+    }
+
+    const repo = pickRepoFields(await response.json());
+    writeRepoCache(repo);
+    renderRepo(card, repo);
+  } catch (error) {
+    console.error('Could not load Omnia from GitHub:', error);
+    renderRepoFallback(card);
+  }
+}
+
+// Keep only the GitHub values that the card displays.
+function pickRepoFields(repo) {
+  return {
+    description: repo.description,
+    language: repo.language,
+    stars: repo.stargazers_count,
+    updatedAt: repo.pushed_at,
+  };
+}
+
+function readRepoCache() {
+  const raw = localStorage.getItem(REPO_CACHE_KEY);
+  if (!raw) return null;
+
+  try {
+    const { savedAt, data } = JSON.parse(raw);
+    const isFresh = Date.now() - savedAt < CACHE_MAX_AGE;
+    return isFresh ? data : null;
+  } catch {
+    // The saved value was not valid JSON, so ignore it and fetch fresh data.
+    return null;
+  }
+}
+
+function writeRepoCache(repo) {
+  const entry = { savedAt: Date.now(), data: repo };
+  localStorage.setItem(REPO_CACHE_KEY, JSON.stringify(entry));
+}
+
+function renderRepo(card, repo) {
+  // Keep the HTML fallback description if GitHub has no description.
+  if (repo.description) {
+    card.querySelector('.gh-desc').textContent = repo.description;
+  }
+
+  card.querySelector('.gh-language').textContent = repo.language || 'Mixed';
+  card.querySelector('.gh-stars').textContent = `★ ${repo.stars}`;
+  card.querySelector('.gh-updated').textContent =
+    `Updated ${formatDate(repo.updatedAt)}`;
+
+  // Keep the card's sort date in sync with GitHub's latest update date.
+  card.dataset.date = repo.updatedAt.slice(0, 10);
+
+  finishLoading(card);
+}
+
+function renderRepoFallback(card) {
+  card.querySelector('.gh-stats').hidden = true;
+  card.querySelector('.gh-note').hidden = false;
+  finishLoading(card);
+}
+
+// Loading means the skeleton class is active and aria-busy is true.
+// Remove the skeleton and clear aria-busy when loading ends.
+function finishLoading(card) {
+  card.classList.remove('is-loading');
+  card.setAttribute('aria-busy', 'false');
+}
+
+// Example: "2026-11-13T09:41:00Z" becomes "13 Nov 2026".
+function formatDate(isoString) {
+  return new Date(isoString).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
 }
