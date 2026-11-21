@@ -253,7 +253,6 @@ function initContactForm() {
 }
 
 /* ---------- Footer year ---------- */
-
 function initFooterYear() {
   const yearEl = document.getElementById('year');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
@@ -262,7 +261,7 @@ function initFooterYear() {
 /* ---------- 5. Live Omnia project card from GitHub (1-hour cache, fallback on error) ---------- */
 
 const GITHUB_REPO_URL = 'https://api.github.com/repos/nhlsu/Omnia';
-const REPO_CACHE_KEY = 'omniaRepoCache';
+const REPO_CACHE_KEY = 'omniaRepoCache-v2';  // v2: cache now stores pushed_at, so old entries are ignored
 const CACHE_MAX_AGE = 60 * 60 * 1000; // Keep cached data for one hour.
 
 async function initGitHubCard() {
