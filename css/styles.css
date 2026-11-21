@@ -18,6 +18,8 @@
   --font-heading: 'Poppins', sans-serif;
   --font-body: 'Inter', sans-serif;
   --transition: 0.25s ease;
+  --color-on-accent: #ffffff;
+  --color-pending-text: #805900;
 }
 
 /* Dark theme (toggled via [data-theme="dark"] on <html>) */
@@ -27,6 +29,8 @@
   --color-text: #eef0f7;
   --color-text-muted: #a4a8bd;
   --color-accent: #9b8cff;
+  --color-on-accent: #14151f;
+  --color-pending-text: #e0b84a;
   --color-accent-dark: #7c6bee;
   --color-border: #2b2e3f;
   --color-card-bg: #1e2030;
@@ -54,6 +58,7 @@ body {
 
 img {
   max-width: 100%;
+   height: auto;
   display: block;
 }
 
@@ -174,6 +179,7 @@ h1, h2, h3 {
   font-weight: 600;
   margin-bottom: 0.75rem;
   letter-spacing: 0.02em;
+  min-height: 1.6em;
 }
 
 .hero h1 {
@@ -212,7 +218,7 @@ h1, h2, h3 {
 
 .btn-primary {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
 }
 
 .btn-primary:hover {
@@ -228,10 +234,15 @@ h1, h2, h3 {
 
 .btn-outline:hover {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   transform: translateY(-2px);
 }
+
 /* ---------- Name form (hero) ---------- */
+.name-area {
+  min-height: 8rem;
+}
+
 .name-form {
   max-width: 420px;
   margin: 0 auto 1.25rem;
@@ -433,7 +444,7 @@ h1, h2, h3 {
 }
 
 .tag-pending {
-  color: #b8860b;
+  color: var(--color-pending-text);
   border-color: #d8b34d;
   background: rgba(216, 179, 77, 0.12);
 }
@@ -611,6 +622,7 @@ h1, h2, h3 {
     text-align: center;
   }
 }
+
 /* ---------- GitHub live card (Omnia) ---------- */
 .gh-stats {
   display: flex;
@@ -620,10 +632,10 @@ h1, h2, h3 {
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
 .gh-stats[hidden] { display: none; } /* display:flex would otherwise override the hidden attribute */
 
 .gh-note { font-size: 0.85rem; font-style: italic; color: var(--color-text-muted); }
-
 .gh-link { display: inline-block; margin-top: 0.75rem; font-weight: 600; color: var(--color-accent); text-decoration: none; }
 .gh-link:hover { text-decoration: underline; }
 
@@ -635,14 +647,17 @@ h1, h2, h3 {
   border-radius: 6px;
   animation: skeleton-pulse 1.2s ease-in-out infinite;
 }
+
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
+
 @media (prefers-reduced-motion: reduce) {
   .is-loading .gh-desc,
   .is-loading .gh-stats span { animation: none; }
 }
+
 /* ---------- Project controls (filter, level, sort) ---------- */
 .project-controls {
   display: flex;
@@ -652,6 +667,7 @@ h1, h2, h3 {
   gap: 1rem;
   margin-bottom: 1rem;
 }
+
 .filter-buttons,
 .control-selects {
   display: flex;
@@ -659,6 +675,7 @@ h1, h2, h3 {
   align-items: center;
   gap: 0.5rem;
 }
+
 .filter-btn,
 .control-selects select {
   padding: 0.45rem 1rem;
@@ -671,18 +688,22 @@ h1, h2, h3 {
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
 }
+
 .filter-btn:hover,
 .control-selects select:hover { border-color: var(--color-accent); }
+
 .filter-btn[aria-pressed="true"] {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
 }
+
 .filter-btn:focus-visible,
 .control-selects select:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
 .control-selects label { font-size: 0.9rem; color: var(--color-text-muted); }
 
 /* min-height reserves space, so the grid doesn't jump when the message appears */
@@ -695,7 +716,6 @@ h1, h2, h3 {
 
 .up-next-title { margin: 2.5rem 0 1rem; font-family: var(--font-heading); }
 .up-next { max-width: 360px; }
-
 .visit-timer { font-size: 0.85rem; color: var(--color-text-muted); }
 
 @media (max-width: 600px) {

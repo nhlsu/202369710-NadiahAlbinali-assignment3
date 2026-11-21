@@ -6,8 +6,11 @@
   <title>Nadiah Albinali | Portfolio</title>
   <meta name="description" content="Personal portfolio of Nadiah Albinali, Computer Science student focused on ML and data science." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css" />
+   <!-- Empty favicon: stops the browser requesting /favicon.ico (which would 404) -->
+  <link rel="icon" href="data:," />
 </head>
 <body>
 
@@ -39,21 +42,24 @@
     <!-- ===== Hero / Home ===== -->
     <section id="home" class="hero">
       <div class="container hero-content">
-        <p id="greeting" class="greeting" aria-live="polite"><!-- filled by JS: time-of-day + visitor name --></p>
+        <div class="name-area">
+          <p id="greeting" class="greeting" aria-live="polite"><!-- filled by JS: time-of-day + visitor name --></p>
 
-        <!-- Name form: shown only to first-time visitors (JS removes `hidden`) -->
-        <form id="name-form" class="name-form" novalidate hidden>
-          <label for="visitor-name">What’s your name?</label>
-          <div class="name-form-row">
-            <input type="text" id="visitor-name" name="visitor-name" placeholder="Your first name"
-                   maxlength="30" autocomplete="given-name" required />
-            <button type="submit" id="save-name" class="btn btn-primary">Save</button>
-          </div>
-          <p id="visitor-name-error" class="error-message" aria-live="polite"></p>
-        </form>
+          <!-- Name form: shown only to first-time visitors (JS removes `hidden`) -->
+          <form id="name-form" class="name-form" novalidate hidden>
+            <label for="visitor-name">What’s your name?</label>
+            <div class="name-form-row">
+              <input type="text" id="visitor-name" name="visitor-name" placeholder="Your first name"
+                     maxlength="30" autocomplete="given-name" required />
+              <button type="submit" id="save-name" class="btn btn-primary">Save</button>
+            </div>
+            <p id="visitor-name-error" class="error-message" aria-live="polite"></p>
+          </form>
 
-        <!-- Shown after a name is saved -->
-        <button type="button" id="change-name" class="change-name" hidden>Not you? Change name</button>
+          <!-- Shown after a name is saved -->
+          <button type="button" id="change-name" class="change-name" hidden>Not you? Change name</button>
+        </div>
+
         <h1>Hi, I'm <span class="accent">Nadiah Albinali</span></h1>
         <p class="tagline">Computer Science student building toward machine learning &amp; data science, one project at a time.</p>
         <div class="hero-actions">
@@ -69,7 +75,7 @@
         <h2 class="section-title">About Me</h2>
         <div class="about-grid">
           <div class="about-image">
-            <img src="assets/images/profile-placeholder.svg" alt="Portrait placeholder of Nadiah Albinali" />
+            <img src="assets/images/profile-placeholder.svg" alt="Portrait placeholder of Nadiah Albinali" width="400" height="400" />
           </div>
           <div class="about-text">
             <p>
@@ -126,7 +132,6 @@
         <p id="level-message" class="level-message" aria-live="polite"></p>
 
         <div class="projects-grid">
-
           <!-- Omnia: placeholder card. js/script.js (section 5) fills it with live data from the GitHub API.
                The text below is the fallback that stays visible if the request fails. -->
           <article class="project-card is-loading" id="omnia-card"
@@ -215,7 +220,6 @@
               </div>
             </div>
           </article>
-
         </div>
 
         <p id="no-results" class="no-results" hidden>No projects match these filters. Try changing or clearing a filter.</p>
@@ -246,32 +250,26 @@
       <div class="container">
         <h2 class="section-title">Experience</h2>
         <div class="experience-grid">
-
           <article class="experience-card">
             <h3>Media &amp; PR</h3>
             <p class="experience-org">UAS 2030</p>
           </article>
-
           <article class="experience-card">
             <h3>Documentation</h3>
             <p class="experience-org">FCC</p>
           </article>
-
           <article class="experience-card">
             <h3>Leader</h3>
             <p class="experience-org">Solution Hackathon</p>
           </article>
-
           <article class="experience-card">
             <h3>Member</h3>
             <p class="experience-org">Tuwaiq Finance Committee</p>
           </article>
-
           <article class="experience-card">
             <h3>Logistics &amp; Operations</h3>
             <p class="experience-org">Diwan</p>
           </article>
-
         </div>
       </div>
     </section>
