@@ -1,10 +1,14 @@
 /* =========================================================
    Nadiah Albinali — Portfolio Script
+
    Features:
-   1. Dark / light theme toggle (persisted in localStorage)
-   2. Personalized greeting (time of day + visitor name saved in localStorage)
+   1. Dark / light theme toggle (saved in localStorage)
+   2. Personalized greeting and saved visitor name
    3. Smooth scrolling + mobile nav toggle
-   4. Contact form validation (client-side only, no backend)
+   4. Contact form validation
+   5. Live Omnia project card from GitHub (1-hour cache, fallback on error)
+   6. Project category/level filters and sorting (choices saved)
+   7. Time-on-site timer
    ========================================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,17 +17,20 @@ document.addEventListener('DOMContentLoaded', () => {
   initNameForm();
   initMobileNav();
   initContactForm();
-  initGitHubCard();
   initFooterYear();
+  initProjectControls();
+  initGitHubCard();
+  initVisitTimer();
 });
 
 /* ---------- 1. Theme toggle ---------- */
+
 function initThemeToggle() {
   const root = document.documentElement;
   const toggleBtn = document.getElementById('theme-toggle');
   const icon = document.getElementById('theme-icon');
 
-  // Respect a saved preference, otherwise fall back to system preference
+  // Respect a saved preference, otherwise use the system preference.
   const saved = localStorage.getItem('theme');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const initialTheme = saved || (prefersDark ? 'dark' : 'light');
@@ -33,6 +40,7 @@ function initThemeToggle() {
   toggleBtn.addEventListener('click', () => {
     const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     const next = current === 'dark' ? 'light' : 'dark';
+
     applyTheme(next);
     localStorage.setItem('theme', next);
   });
@@ -49,9 +57,10 @@ function initThemeToggle() {
 }
 
 /* ---------- 2. Greeting (time of day + saved visitor name) ---------- */
+
 const NAME_KEY = 'visitorName';
 
-// Returns the time-based part of the greeting
+// Returns the time-based part of the greeting.
 function getTimeGreeting() {
   const hour = new Date().getHours();
 
@@ -61,7 +70,7 @@ function getTimeGreeting() {
   return 'Good evening';
 }
 
-// Writes the greeting, adding the visitor's name if one is saved
+// Writes the greeting, adding the visitor's name if one is saved.
 function renderGreeting() {
   const greetingEl = document.getElementById('greeting');
   if (!greetingEl) return;
@@ -76,24 +85,26 @@ function renderGreeting() {
   playFadeIn(greetingEl);
 }
 
-// Restarts the fade-in animation on an element
+// Restarts the fade-in animation on an element.
 function playFadeIn(el) {
   el.classList.remove('fade-in');
-  void el.offsetWidth; // forces the browser to notice the removal
+  void el.offsetWidth; // Force the browser to notice the removal.
   el.classList.add('fade-in');
 }
 
 /* ---------- 2b. Name form (first-time visitors) ---------- */
+
 function initNameForm() {
   const form = document.getElementById('name-form');
   const input = document.getElementById('visitor-name');
   const errorEl = document.getElementById('visitor-name-error');
   const changeBtn = document.getElementById('change-name');
+
   if (!form || !input || !errorEl || !changeBtn) return;
 
   updateNameUI();
 
-  // Handles both clicking Save and pressing Enter in the input
+  // Handles clicking Save and pressing Enter in the input.
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = input.value.trim();
@@ -118,7 +129,7 @@ function initNameForm() {
     input.focus();
   });
 
-  // Shows the form OR the "Change name" button, depending on whether a name is saved
+  // Shows the form or the "Change name" button, depending on whether a name is saved.
   function updateNameUI() {
     const hasName = Boolean(localStorage.getItem(NAME_KEY));
     form.hidden = hasName;
@@ -136,7 +147,9 @@ function initNameForm() {
     input.classList.remove('invalid');
   }
 }
+
 /* ---------- 3. Mobile nav toggle + smooth scroll close ---------- */
+
 function initMobileNav() {
   const navToggle = document.getElementById('nav-toggle');
   const navLinks = document.getElementById('nav-links');
@@ -146,8 +159,8 @@ function initMobileNav() {
     navToggle.setAttribute('aria-expanded', String(isOpen));
   });
 
-  // Close the mobile menu after a link is clicked (smooth scroll is
-  // handled natively via CSS `scroll-behavior: smooth` + href anchors)
+  // Close the mobile menu after a link is clicked.
+  // Smooth scrolling is handled by CSS and the anchor links.
   navLinks.querySelectorAll('.nav-link').forEach((link) => {
     link.addEventListener('click', () => {
       navLinks.classList.remove('open');
@@ -155,7 +168,9 @@ function initMobileNav() {
     });
   });
 }
+
 /* ---------- 4. Contact form validation ---------- */
+
 function initContactForm() {
   const form = document.getElementById('contact-form');
   if (!form) return;
@@ -165,29 +180,29 @@ function initContactForm() {
   const messageInput = document.getElementById('message');
   const successMsg = document.getElementById('form-success');
 
-  // Each field: what counts as valid, plus separate messages for empty vs invalid
+  // Each field has a validity rule and separate empty/invalid messages.
   const fields = [
     {
       input: nameInput,
-      isValid: (v) => v.length >= 2,
+      isValid: (value) => value.length >= 2,
       emptyMsg: 'Please enter your name.',
       invalidMsg: 'Your name needs at least 2 characters.',
     },
     {
       input: emailInput,
-      isValid: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      isValid: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
       emptyMsg: 'Please enter your email address.',
       invalidMsg: 'That email looks incomplete. Try something like name@example.com.',
     },
     {
       input: messageInput,
-      isValid: (v) => v.length >= 10,
+      isValid: (value) => value.length >= 10,
       emptyMsg: 'Please write a message before sending.',
       invalidMsg: 'Your message is a bit short. Please write at least 10 characters.',
     },
   ];
 
-  // Clear a field's error as soon as the visitor starts fixing it
+  // Clear a field's error as soon as the visitor starts fixing it.
   fields.forEach(({ input }) => {
     input.addEventListener('input', () => clearFieldError(input));
   });
@@ -197,7 +212,7 @@ function initContactForm() {
     successMsg.textContent = '';
 
     const results = fields.map(validateField);
-    const firstInvalid = fields.find((field, i) => !results[i]);
+    const firstInvalid = fields.find((field, index) => !results[index]);
 
     if (firstInvalid) {
       firstInvalid.input.focus();
@@ -205,12 +220,13 @@ function initContactForm() {
     }
 
     const name = nameInput.value.trim();
-    successMsg.textContent = `Thanks, ${name}! Your message has been received. (This demo form isn’t connected to email yet.)`;
+    successMsg.textContent =
+      `Thanks, ${name}! Your message has been received. (This demo form isn’t connected to email yet.)`;
     playFadeIn(successMsg);
     form.reset();
   });
 
-  // Checks one field and shows the right message (empty vs invalid)
+  // Checks one field and shows the appropriate message.
   function validateField({ input, isValid, emptyMsg, invalidMsg }) {
     const value = input.value.trim();
     let message = '';
@@ -224,6 +240,7 @@ function initContactForm() {
     const errorEl = document.getElementById(`${input.id}-error`);
     input.classList.toggle('invalid', message !== '');
     errorEl.textContent = message;
+
     if (message) playFadeIn(errorEl);
 
     return message === '';
@@ -236,11 +253,14 @@ function initContactForm() {
 }
 
 /* ---------- Footer year ---------- */
+
 function initFooterYear() {
   const yearEl = document.getElementById('year');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 }
-/* ---------- 5. GitHub API: live Omnia card ---------- */
+
+/* ---------- 5. Live Omnia project card from GitHub (1-hour cache, fallback on error) ---------- */
+
 const GITHUB_REPO_URL = 'https://api.github.com/repos/nhlsu/Omnia';
 const REPO_CACHE_KEY = 'omniaRepoCache';
 const CACHE_MAX_AGE = 60 * 60 * 1000; // Keep cached data for one hour.
@@ -313,8 +333,9 @@ function renderRepo(card, repo) {
   card.querySelector('.gh-updated').textContent =
     `Updated ${formatDate(repo.updatedAt)}`;
 
-  // Keep the card's sort date in sync with GitHub's latest update date.
+  // Keep the card's sort date in sync with GitHub's latest push date.
   card.dataset.date = repo.updatedAt.slice(0, 10);
+  updateProjects(); // Re-sort after updating Omnia's date.
 
   finishLoading(card);
 }
@@ -335,6 +356,156 @@ function finishLoading(card) {
 // Example: "2026-11-13T09:41:00Z" becomes "13 Nov 2026".
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   });
+}
+
+/* ---------- 6. Project category/level filters and sorting (choices saved) ---------- */
+
+const PROJECT_PREFS_KEY = 'projectPrefs';
+const DEFAULT_PREFS = { category: 'all', level: 'all', sort: 'newest' };
+
+const LEVEL_MESSAGES = {
+  all: '',
+  beginner: 'Projects from my early courses, where I learned the fundamentals.',
+  advanced: 'Projects where I combined tools and concepts to build more complete solutions.',
+};
+
+let projectPrefs = loadProjectPrefs();
+
+function initProjectControls() {
+  const levelSelect = document.getElementById('level-select');
+  const sortSelect = document.getElementById('sort-select');
+  const clearBtn = document.getElementById('clear-filters');
+
+  if (!levelSelect || !sortSelect || !clearBtn) return;
+
+  // Put the saved choices back into the dropdowns.
+  levelSelect.value = projectPrefs.level;
+  sortSelect.value = projectPrefs.sort;
+
+  document.querySelectorAll('.filter-btn[data-filter]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      projectPrefs.category = btn.dataset.filter;
+      updateProjects();
+    });
+  });
+
+  levelSelect.addEventListener('change', () => {
+    projectPrefs.level = levelSelect.value;
+    updateProjects();
+  });
+
+  sortSelect.addEventListener('change', () => {
+    projectPrefs.sort = sortSelect.value;
+    updateProjects();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    // Reset category and level; keep the current sort choice.
+    projectPrefs.category = 'all';
+    projectPrefs.level = 'all';
+    levelSelect.value = 'all';
+    updateProjects();
+  });
+
+  updateProjects();
+}
+
+// The controls and GitHub fetch call this function to update the project list.
+function updateProjects() {
+  const grid = document.querySelector('.projects-grid');
+  if (!grid) return;
+
+  const cards = Array.from(grid.querySelectorAll('.project-card'));
+  const { category, level, sort } = projectPrefs;
+
+  // Step 1: show or hide each card.
+  let visibleCount = 0;
+
+  cards.forEach((card) => {
+    const matchesCategory =
+      category === 'all' || card.dataset.category === category;
+    const matchesLevel =
+      level === 'all' || card.dataset.level === level;
+    const isVisible = matchesCategory && matchesLevel;
+
+    card.hidden = !isVisible;
+    if (isVisible) visibleCount++;
+  });
+
+  // Step 2: sort, then re-append. appendChild moves existing cards.
+  cards.sort((a, b) => compareCards(a, b, sort));
+  cards.forEach((card) => grid.appendChild(card));
+
+  // Step 3: show the empty-results message only when no cards match.
+  document.getElementById('no-results').hidden = visibleCount > 0;
+
+  // Step 4: update the message for the selected level.
+  document.getElementById('level-message').textContent = LEVEL_MESSAGES[level];
+
+  // Step 5: highlight the selected category button.
+  document.querySelectorAll('.filter-btn[data-filter]').forEach((btn) => {
+    btn.setAttribute(
+      'aria-pressed',
+      String(btn.dataset.filter === category)
+    );
+  });
+
+  saveProjectPrefs();
+}
+
+// Comparator for Array.sort: negative means a goes first, positive means b goes first.
+function compareCards(a, b, sort) {
+  const titleA = a.querySelector('h3').textContent.trim();
+  const titleB = b.querySelector('h3').textContent.trim();
+
+  if (sort === 'az') return titleA.localeCompare(titleB);
+
+  // YYYY-MM-DD strings sort correctly as plain text.
+  const dateA = a.dataset.date;
+  const dateB = b.dataset.date;
+
+  // If dates match, use the titles for a consistent order.
+  if (dateA === dateB) return titleA.localeCompare(titleB);
+
+  if (sort === 'newest') return dateB.localeCompare(dateA);
+  return dateA.localeCompare(dateB);
+}
+
+function loadProjectPrefs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PROJECT_PREFS_KEY));
+    return { ...DEFAULT_PREFS, ...saved };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+}
+
+function saveProjectPrefs() {
+  localStorage.setItem(PROJECT_PREFS_KEY, JSON.stringify(projectPrefs));
+}
+
+/* ---------- 7. Time-on-site timer ---------- */
+
+function initVisitTimer() {
+  const timerEl = document.getElementById('visit-timer');
+  if (!timerEl) return;
+
+  const startTime = Date.now();
+
+  setInterval(() => {
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+
+    timerEl.textContent = `${pad(minutes)}:${pad(seconds)}`;
+  }, 1000);
+}
+
+// 7 becomes "07".
+function pad(number) {
+  return String(number).padStart(2, '0');
 }
