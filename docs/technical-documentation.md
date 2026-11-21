@@ -1,155 +1,225 @@
 # Technical Documentation
-
+ 
 ## Overview
-
-A static, four-section personal portfolio site (About, Projects, Experience,
-Contact) built with vanilla HTML, CSS, and JavaScript — no frameworks or
-build tools.
-
-Assignment 2 extends the Assignment 1 site with a personalized greeting, a
-visitor name saved in `localStorage`, clearer validation messages, and a
-fade-in animation.
-
+ 
+A static single-page portfolio (About, Projects, Experience, Contact) built with vanilla HTML, CSS, and JavaScript, with no frameworks or build tools. It is hosted on GitHub Pages.
+ 
+Assignment 3 adds:
+- a project card that loads live data from the **GitHub REST API**, with a loading skeleton, a one-hour cache, and a fallback when the request fails;
+- **filtering and sorting** of the project cards, with messages that change based on the visitor's choices;
+- a **time-on-site timer**;
+- saved visitor choices in `localStorage`;
+- fixes from a **Lighthouse** performance and accessibility audit.
 ## File Structure
-
+ 
 | File | Purpose |
 |---|---|
-| `index.html` | Page markup: header/nav, hero (greeting + name form), About, Projects, Experience, Contact, footer. |
-| `css/styles.css` | All styling: CSS variables for theming, reset, layout (Flexbox/Grid), components, name form, fade-in animation, and responsive breakpoints. |
-| `js/script.js` | All interactivity, split into small functions (see below). |
-| `assets/images/` | Placeholder SVGs for the profile photo and project cards. |
-| `docs/ai-usage-report.md` | AI usage documentation. |
-| `docs/technical-documentation.md` | This file. |
-
-## Architecture & Key Decisions
-
-### Theming
-Theme colors are defined as CSS custom properties on `:root`, with a
-`[data-theme="dark"]` override block. `js/script.js` toggles a
-`data-theme="dark"` attribute on `<html>` and saves the choice in
-`localStorage`, falling back to the OS-level `prefers-color-scheme` on the
-first visit. All new Assignment 2 styles use the same variables, so they
-switch with the theme automatically.
-
-### Layout
-- **Flexbox** is used for the navbar, hero content, both forms, and the
-  name input + Save button row.
-- **CSS Grid** (`repeat(auto-fit, minmax(260px, 1fr))`) is used for the
-  Projects grid so cards reflow without extra media queries.
-- Responsive breakpoints at `900px` (tablet) and `640px` (mobile).
-
-### JavaScript (`js/script.js`)
-All features start from one `DOMContentLoaded` listener:
-
-| Function | What it does |
+| `index.html` | Page markup: header/nav, hero (greeting + name form), About, Projects (controls, project grid, Up Next), Experience, Contact, footer (timer). |
+| `css/styles.css` | All styling: theme variables, reset, layout (Flexbox/Grid), components, GitHub card skeleton, project controls, responsive breakpoints. |
+| `js/script.js` | All interactivity, organized into 7 numbered sections (see below). |
+| `assets/images/` | SVG images for the profile and project cards (all under 1.1 KB). |
+| `docs/` | This file and the AI usage report. |
+ 
+## JavaScript Structure
+ 
+Everything starts from one `DOMContentLoaded` listener, in this order:
+ 
+```js
+initThemeToggle();      // 1
+renderGreeting();       // 2
+initNameForm();         // 2b
+initMobileNav();        // 3
+initContactForm();      // 4
+initFooterYear();
+initProjectControls();  // 6: set up controls before data arrives
+initGitHubCard();       // 5: may call updateProjects() when its data loads
+initVisitTimer();       // 7
+```
+ 
+`initProjectControls()` runs before `initGitHubCard()` so the controls and saved choices are ready before the Omnia card's data arrives and triggers a re-sort.
+ 
+| Section | Functions | Purpose |
+|---|---|---|
+| 1. Theme | `initThemeToggle()` | Dark/light toggle; falls back to the OS setting on first visit |
+| 2. Greeting | `getTimeGreeting()`, `renderGreeting()`, `playFadeIn()` | Time-of-day greeting with the saved name |
+| 2b. Name form | `initNameForm()` | Saves/clears the visitor name; shows the form or "Change name" |
+| 3. Navigation | `initMobileNav()` | Mobile menu toggle with `aria-expanded` |
+| 4. Contact form | `initContactForm()`, `validateField()` | Empty vs invalid messages, focus on first error |
+| 5. GitHub card | `initGitHubCard()`, `pickRepoFields()`, `readRepoCache()`, `writeRepoCache()`, `renderRepo()`, `renderRepoFallback()`, `finishLoading()`, `formatDate()` | Fetch, cache, and display the Omnia repo |
+| 6. Projects | `initProjectControls()`, `updateProjects()`, `compareCards()`, `loadProjectPrefs()`, `saveProjectPrefs()` | Filter, sort, messages, saved choices |
+| 7. Timer | `initVisitTimer()`, `pad()` | Time on site in mm:ss |
+ 
+## API Integration: Live Omnia Card
+ 
+### Why this API
+The site is static, so any API key in `script.js` would be public. I only considered APIs that need **no key** and allow **CORS** (browser requests from another site). The GitHub REST API meets both for public data, and showing live data about my own project fits a portfolio better than a generic widget like quotes or weather.
+ 
+### Endpoint and data used
+`GET https://api.github.com/repos/nhlsu/Omnia` returns one repository object. Only four fields are kept (`pickRepoFields()`), which keeps the cache small:
+ 
+| Card shows | API field |
 |---|---|
-| `initThemeToggle()` | Reads/writes the `theme` key, toggles `data-theme`, swaps the icon. |
-| `getTimeGreeting()` | Returns the time-of-day phrase based on the visitor's local hour. |
-| `renderGreeting()` | Builds the full greeting, adding the saved name if there is one. Called on load, after saving, and after "Change name". |
-| `playFadeIn(el)` | Restarts the fade-in animation on any element (shared helper). |
-| `initNameForm()` | Handles the hero name form: validation, saving, hiding the form, and the "Not you? Change name" button. |
-| `initMobileNav()` | Toggles the mobile menu and `aria-expanded`; closes it on link click. |
-| `initContactForm()` | Validates the contact form and shows error / success messages. |
-| `initFooterYear()` | Writes the current year in the footer. |
-
-### Data storage (`localStorage`)
-
+| Description | `description` |
+| Main language | `language` |
+| Stars | `stargazers_count` |
+| "Updated" date + sort date | `pushed_at` |
+ 
+`pushed_at` (last code push) is used instead of `updated_at`. `updated_at` only changes when the repo's settings or description change, so it was 3 days behind the latest commit (11 Nov vs 14 Nov) and would never move when new code is pushed.
+ 
+### Request flow
+1. **Cache check:** `readRepoCache()` looks for a saved response under `omniaRepoCache-v2`. If it is less than one hour old, it is shown immediately and no request is made.
+2. **Fetch:** otherwise `fetch()` requests the repo.
+3. **Status check:** `fetch()` only rejects on network failure. An HTTP error such as **403** (rate limit) or **404** still resolves, so the code checks `response.ok` and throws if it is false.
+4. **Success:** the four fields are saved with a timestamp (`writeRepoCache()`) and displayed (`renderRepo()`). `renderRepo()` also updates the card's `data-date` and calls `updateProjects()` so the sort order reflects the new date.
+5. **Failure:** `renderRepoFallback()` hides the stats row and shows a note. The description written in the HTML stays visible, with a link to the repo.
+### Loading state
+The card is written in the HTML as a placeholder with class `is-loading` and `aria-busy="true"`. While loading, CSS makes the text transparent and shows pulsing grey bars in its place (a "skeleton"), so the layout doesn't jump when the data arrives. The animation is turned off for `prefers-reduced-motion`. `finishLoading()` removes the class and sets `aria-busy="false"`.
+ 
+### Caching
+- **Why:** unauthenticated GitHub requests are limited to **60 per hour per IP address**. Caching for one hour keeps each visitor far below that and makes repeat visits instant.
+- **Format:** `{ "savedAt": <timestamp in ms>, "data": { description, language, stars, updatedAt } }`
+- **Freshness:** `Date.now() - savedAt < 60 * 60 * 1000`
+- **Robustness:** invalid JSON or a missing timestamp makes the check fail safely, so the page fetches fresh data instead of crashing.
+- **Versioned key:** the key is `omniaRepoCache-v2`. When I switched from `updated_at` to `pushed_at`, browsers that already had a cached entry kept showing the old date for up to an hour. Changing the key makes every browser ignore the old entry immediately.
+## Complex Logic: Filtering and Sorting
+ 
+### Card metadata
+Each card in `.projects-grid` has three data attributes:
+ 
+| Project | `data-category` | `data-level` | `data-date` |
+|---|---|---|---|
+| Omnia | web | advanced | from GitHub (`pushed_at`), fallback `2026-11-14` |
+| Factors Affecting Study Performance | data | beginner | 2026-05-31 |
+| CPU Design | hardware | advanced | 2026-05-31 |
+| Traffic Light Controller | hardware | beginner | 2025-12-31 |
+| Football Analytics Dashboard | data | advanced | 2026-07-31 |
+ 
+The dates for the four course projects are month-end dates, because those projects have no public repository with exact dates. The "Up Next" card is outside the grid, so filters and sorting never affect it.
+ 
+### One update function
+Every control (category buttons, both dropdowns, Clear filters) and the GitHub fetch call a single function, `updateProjects()`, which:
+ 
+1. Shows a card only if it matches **both** filters:
+   `(category === 'all' || card.dataset.category === category) && (level === 'all' || card.dataset.level === level)`
+2. Sorts the cards with `compareCards()` and re-appends them. `appendChild()` moves an element that is already on the page, so this reorders the grid without copying anything.
+3. Shows the empty-results message only when no cards are visible.
+4. Shows the message for the selected level (`LEVEL_MESSAGES`).
+5. Updates `aria-pressed` on the category buttons so the active one is highlighted and announced by screen readers.
+6. Saves the current choices.
+Having one function means the order of these steps is always the same, whichever control triggered it.
+ 
+### Sorting rules (`compareCards`)
+- **A–Z:** `localeCompare()` on the card titles.
+- **Newest / Oldest:** compares `data-date` strings. Dates in `YYYY-MM-DD` format sort correctly as plain text because the year comes first, then the month, then the day.
+- **Ties:** Study Performance and CPU Design share a date, so equal dates fall back to A–Z. Without this, their order could change between sorts.
+### Clear filters
+Resets category and level to "all" but keeps the current sort, because the sort is a display preference, not a filter.
+ 
+## State Management
+ 
+### Saved data (`localStorage`)
+ 
 | Key | Value | Set by |
 |---|---|---|
 | `theme` | `"dark"` or `"light"` | Theme toggle |
-| `visitorName` | The visitor's trimmed name | Name form |
-
-The name key is stored once in a constant (`NAME_KEY`) so it can't be
-misspelled in different places. Data stays in the visitor's own browser
-only. To clear it: DevTools → Application → Local Storage → delete the keys,
-or click "Not you? Change name".
-
-### Personalized greeting flow
-1. On page load, `renderGreeting()` checks `localStorage` for `visitorName`.
-2. **No name saved:** shows the time-of-day greeting only, and
-   `initNameForm()` reveals the name form.
-3. **Name saved:** shows e.g. "Good evening, Nadiah! Welcome to my
-   portfolio." and the "Not you? Change name" button instead of the form.
-4. Saving works by clicking **Save** or pressing **Enter**, because the code
-   listens to the form's `submit` event, which fires for both.
-5. "Change name" removes the key, clears the input, shows the form again,
-   resets the greeting, and moves focus into the input.
-
-Both the form and the "Change name" button start with the HTML `hidden`
-attribute, and JavaScript decides which one to show. This prevents the form
-from flashing for returning visitors, and the page still works if
-JavaScript fails to load.
-
-### Validation & error messages
-Each field has separate messages for **empty** and **invalid** input. All
-input is trimmed with `.trim()` before checking.
-
-| Field | Empty | Invalid |
+| `visitorName` | The visitor's name | Name form |
+| `projectPrefs` | `{ "category", "level", "sort" }` | Project controls |
+| `omniaRepoCache-v2` | `{ "savedAt", "data" }` | GitHub card |
+ 
+### Loading saved choices with defaults
+```js
+return { ...DEFAULT_PREFS, ...saved };
+```
+Defaults are spread first and saved values second, so saved values win. If a saved object is missing a setting (for example, after a new setting is added in a later version), the default fills it in. Reversing the order would reset every choice to the defaults on each reload.
+ 
+All data stays in the visitor's own browser. User text (the visitor name) is always inserted with `textContent`, never `innerHTML`, so it can't inject HTML.
+ 
+## Timer
+ 
+`initVisitTimer()` records `startTime = Date.now()` and updates the footer every second with the elapsed time:
+ 
+```js
+const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+```
+ 
+It calculates the real elapsed time each tick instead of adding 1 to a counter. Browsers slow down `setInterval` in background tabs (Chrome can delay it to once a minute), so a counter would fall behind when the visitor switches tabs. With this approach, the interval only controls how often the display refreshes, not what time it shows. The timer resets on reload by design.
+ 
+## Performance
+ 
+### Method
+Lighthouse in Chrome DevTools, run on the live GitHub Pages site in an **Incognito window** so browser extensions couldn't affect the results. Before the fixes: one run per device. After the fixes: three runs per device, reporting the **median**, because scores varied between runs of the same code.
+ 
+### Results
+ 
+| Category | Mobile before | Mobile after (median) | Desktop before | Desktop after (median) |
+|---|:-:|:-:|:-:|:-:|
+| Performance | 98 | 92 | 92 | **99** |
+| Accessibility | 96 | **100** | 96 | **100** |
+| Best Practices | 96 | **100** | 96 | **100** |
+| SEO | 100 | 100 | 100 | 100 |
+| Cumulative Layout Shift | 0 | 0.001 | 0.176 | **0.034** |
+ 
+### What was fixed
+ 
+| Issue found | Fix | Result |
 |---|---|---|
-| Hero name | You haven't entered a name yet. Please type your name and click Save. | — |
-| Contact name | Please enter your name. | Your name needs at least 2 characters. |
-| Contact email | Please enter your email address. | That email looks incomplete. Try something like name@example.com. |
-| Contact message | Please write a message before sending. | Your message is a bit short. Please write at least 10 characters. |
-
-In the contact form, the rules and messages are kept together in one
-`fields` array, so a message can be changed in one place. All fields are
-checked on submit so every problem shows at once. The cursor moves to the
-first invalid field, and each field's error clears as soon as the visitor
-types in it (`input` event). Invalid inputs also get a red border (`.invalid`).
-
-### Animation
-- `@keyframes fadeIn` moves an element from invisible and 8px lower to fully
-  visible in place, over 0.5s. The `.fade-in` class applies it.
-- `playFadeIn()` removes the class, forces a reflow (`void el.offsetWidth`),
-  and adds the class back. Without the reflow, the browser merges the remove
-  and add into one step and the animation would not replay.
-- It runs on the greeting, error messages, and the success message.
-- `@media (prefers-reduced-motion: reduce)` turns the animation off for
-  visitors who have asked their device for less motion.
-
-### Security note
-The visitor's name is always inserted with `textContent`, never
-`innerHTML`, so typed HTML (e.g. `<b>Name</b>`) is shown as plain text and
-cannot change the page.
-
-### Accessibility notes
-- All interactive controls have `aria-label`/`aria-expanded` where relevant.
-- Form inputs use `<label for="">` tied to input `id`s.
-- The greeting and the name form's error use `aria-live="polite"`, so
-  screen readers announce changes without interrupting.
-- "Not you? Change name" is a `<button>` (not a link) because it performs an
-  action, so it is keyboard-accessible and announced correctly.
-- The fade-in animation respects `prefers-reduced-motion`.
-- Images include descriptive `alt` text.
-
-## Bugs Found & Fixed in Assignment 2
-
+| Hero content jumped after load (desktop CLS 0.176). The name form appears for first-time visitors and the greeting is filled in by JavaScript, pushing content down. | Wrapped the greeting, name form, and "Change name" button in `.name-area` with `min-height: 8rem`; gave `.greeting` a `min-height` | CLS 0.034 (under Google's 0.1 "good" threshold) |
+| Dark-mode buttons: white text on `#9b8cff` = 2.76:1 contrast (minimum is 4.5:1) | New variable `--color-on-accent`: white in light mode, `#14151f` in dark mode. Used for primary buttons, outline-button hover, and the active filter | 6.56:1 |
+| "Pending" tag: 3.91:1 contrast | New variable `--color-pending-text`: `#805900` (light) and `#e0b84a` (dark) | 5.81:1 and 6.74:1 |
+| Console error: `/favicon.ico` returned 404 | `<link rel="icon" href="data:," />` tells the browser there is no icon, so it doesn't request one | No console errors |
+| Google Fonts blocked rendering | Added `preconnect` to `fonts.gstatic.com` (with `crossorigin`, because font files are downloaded in CORS mode) | Connection starts earlier; still flagged, because the font CSS must load before text is drawn |
+| Profile image had no `width`/`height` | Added `width="400" height="400"`, plus `height: auto` on `img` so the image keeps its 1:1 shape when CSS shrinks it | No longer flagged |
+ 
+### Already efficient (no change needed)
+- **Images:** all 7 are SVGs under 1.1 KB each. SVG stays sharp at any size, so no resizing or compression is needed.
+- **Unused code:** every CSS class in `styles.css` is used in the HTML or JavaScript.
+- **JavaScript:** Total Blocking Time was 0 ms on every run.
+- **Font weights:** I considered removing unused font weights from the Google Fonts URL but didn't, because browsers only download font files that the page actually uses. The extra weights only add a few lines to a small CSS file.
+### Known limits
+- **Cache lifetimes:** GitHub Pages serves files with a 10-minute cache, and this can't be changed on Pages. Lighthouse flags it, but it's a hosting limitation.
+- **Score variation:** mobile Performance ranged from **89 to 99** across runs of the same code within two minutes, depending on how fast the server responded (for example, `styles.css` took 1.75 s in one run and 0.66 s in another). The mobile Performance "drop" from 98 to 92 is within this range. The Accessibility, Best Practices, and layout-shift improvements were the same in every run.
+## Compatibility
+ 
+Tested on the live site:
+ 
+| Feature | Chrome | Edge | Safari (iPhone) |
+|---|:-:|:-:|:-:|
+| Theme toggle (remembered) | ✓ | ✓ | ✓ |
+| Name form + greeting | ✓ | ✓ | ✓ |
+| Omnia card (live GitHub data) | ✓ | ✓ | ✓ |
+| Filters, sort, saved choices | ✓ | ✓ | ✓ |
+| Contact form validation | ✓ | ✓ | ✓ |
+| Timer | ✓ | ✓ | ✓ |
+| Mobile menu | — | — | ✓ |
+ 
+Chrome and Edge use the Chromium engine; Safari uses WebKit. Firefox (Gecko engine) was not tested. The JavaScript uses features supported by all current browsers (`fetch`, `async/await`, spread syntax, `padStart`, `localStorage`).
+ 
+## Accessibility Notes
+- Category buttons use `aria-pressed` to announce which filter is active, inside a `role="group"` with a label.
+- Every dropdown has a `<label for>`.
+- The level message and the greeting use `aria-live="polite"`, so changes are announced.
+- The Omnia card uses `aria-busy` while loading.
+- Visible focus outline on buttons and dropdowns (`:focus-visible`).
+- All text meets the 4.5:1 contrast ratio in both themes (Lighthouse Accessibility 100).
+- Animations (fade-in, skeleton pulse) are off for `prefers-reduced-motion`.
+## Bugs Found and Fixed in Assignment 3
+ 
 | Bug | Cause | Fix |
 |---|---|---|
-| Contact form's Name error never appeared | Two elements had `id="name-error"` (hero form and contact form); `getElementById` returned the first one | Renamed the hero error to `visitor-name-error` |
-| Hero and button styles disappeared | Pasting new CSS replaced existing rules instead of adding to them | Restored the rules from the last commit; now checking `git diff` before committing |
-| Save button used a different font | `<button>` elements don't inherit fonts by default | Added `font: inherit` to `.btn` (also fixes Send Message) |
-| Footer year was blank | A misplaced `}` nested `initFooterYear()` inside `initContactForm()` | Moved the closing brace |
-| Risk: form would never hide | `display: flex` overrides the `hidden` attribute | Added `.name-form[hidden], .change-name[hidden] { display: none; }` |
-
+| Omnia card stuck on the loading skeleton | `initGitHubCard()` was defined but never called | Added it to the `DOMContentLoaded` list |
+| Card showed an outdated date (11 Nov instead of 14 Nov) | Used `updated_at`, which tracks settings changes, not code pushes | Switched to `pushed_at` |
+| Old date still showed after switching fields | The browser kept the cached response from before the change | Versioned the cache key (`omniaRepoCache-v2`) |
+| Filters and timer did nothing | `initProjectControls()` and `initVisitTimer()` were not called | Added both to the startup list |
+| Re-sort after GitHub loaded used the old date | `updateProjects()` was called before `data-date` was updated | Moved the call after the update |
+| Most styles after `.btn-primary` could break | Missing `}` in `.btn-primary`; modern browsers treat the following rules as nested inside it (CSS nesting) | Closed the rule |
+| Profile photo would be stretched | `height="400"` with `max-width: 100%` shrinks the width but keeps the height | Added `height: auto` to `img` |
+| Omnia image would be blurry and cropped | Linked the repo's 32×32 favicon from GitHub; `object-fit: cover` scaled it up to the card width | Made a local 600×320 SVG banner around the icon |
+| First "after" Lighthouse run showed no improvement | The fixes hadn't been pushed yet / GitHub Pages hadn't finished deploying | Pushed, waited for the deploy, re-ran |
+ 
 ## Known Limitations
-
-- The contact form has no backend. Submissions are validated client-side
-  only and are not sent or stored anywhere.
-- The saved name is stored per browser. It doesn't follow the visitor to
-  another device, and clearing site data removes it.
-- The hero name form only rejects empty names; any other text up to 30
-  characters (`maxlength`) is accepted.
-- Project images are placeholder SVGs.
-- Not yet tested end-to-end with a screen reader.
-
-## Browser/Device Testing
-
-Manually tested in Google Chrome using DevTools device emulation at 375px,
-768px, 1024px, and 1440px, in both light and dark themes.
-
-Checked: saving a name with the button and with Enter; empty-name error;
-name remembered after reload; "Change name" reset; contact form empty,
-invalid, and valid submissions; errors clearing while typing; fade-in on
-greeting, errors, and success message; theme toggle and mobile menu still
-working. No JavaScript console errors during testing.
+- The contact form has no backend; submissions are validated but not sent.
+- Saved data (name, choices, cache) is per browser and per device.
+- If GitHub's rate limit is reached, the Omnia card shows its fallback until the limit resets.
+- Course project dates are approximate (month-end).
+- Firefox and screen readers have not been tested.
+ 
