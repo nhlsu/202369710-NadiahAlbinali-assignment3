@@ -65,6 +65,7 @@ I used it in one long session with a fixed workflow: **I wrote the plan for each
 | A07 | Claude (Opus 5.5) | 2026-11-21 | README draft | `README.md` | Reviewed against my code and test results; kept the draft wording. |
 | A08 | Claude (Opus 5.5) | 2026-11-21 | Technical documentation draft | `docs/technical-documentation.md` | Reviewed against my code and test results; kept the draft wording. |
 | A09 | Claude (Opus 5.5) | 2026-11-21 | AI usage report draft (this file) | `docs/ai-usage-report.md` | Rephrased Benefits & Challenges and Learning Outcomes in my own words (same points as the draft); checked every statement against what I actually did. |
+| A10 | Claude (Opus 5.5) | 2026-11-21 | Formatting pass on my rewritten report | `docs/ai-usage-report.md` | Claude fixed heading levels and bullet formatting, and corrected 3 statements that contradicted my log (Documentation row, Documentation bullet, A04). Reviewed each change before committing. |
  
 ## Declaration
  
